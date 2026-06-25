@@ -1,0 +1,103 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "A user profile in the application.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "role": { "type": "string", "enum": ["candidate", "recruiter", "admin"] },
+        "createdAt": { "type": "number" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["email", "role", "createdAt"]
+    },
+    "Resume": {
+      "title": "Resume",
+      "description": "Resume uploaded by a candidate.",
+      "type": "object",
+      "properties": {
+        "candidateId": { "type": "string" },
+        "fileName": { "type": "string" },
+        "fileUrl": { "type": "string" },
+        "parsedText": { "type": "string" },
+        "aiAnalysis": { "type": "object" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["candidateId", "fileName", "fileUrl", "createdAt"]
+    },
+    "Job": {
+      "title": "Job",
+      "description": "Job posting by a recruiter.",
+      "type": "object",
+      "properties": {
+        "recruiterId": { "type": "string" },
+        "title": { "type": "string" },
+        "company": { "type": "string" },
+        "description": { "type": "string" },
+        "requirements": { "type": "array", "items": { "type": "string" } },
+        "aiAnalysis": { "type": "object" },
+        "createdAt": { "type": "number" },
+        "updatedAt": { "type": "number" },
+        "status": { "type": "string", "enum": ["open", "closed"] }
+      },
+      "required": ["recruiterId", "title", "company", "description", "status", "createdAt"]
+    },
+    "Application": {
+      "title": "Application",
+      "description": "A candidate's application to a job.",
+      "type": "object",
+      "properties": {
+        "candidateId": { "type": "string" },
+        "jobId": { "type": "string" },
+        "resumeId": { "type": "string" },
+        "matchScore": { "type": "number" },
+        "aiExplanation": { "type": "string" },
+        "status": { "type": "string", "enum": ["applied", "screening", "interviewing", "rejected", "hired"] },
+        "createdAt": { "type": "number" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["candidateId", "jobId", "resumeId", "status", "createdAt"]
+    },
+    "Interview": {
+      "title": "Interview",
+      "description": "An AI interview session for a candidate.",
+      "type": "object",
+      "properties": {
+        "applicationId": { "type": "string" },
+        "candidateId": { "type": "string" },
+        "transcript": { "type": "array" },
+        "aiFeedback": { "type": "object" },
+        "score": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "in_progress", "completed"] },
+        "createdAt": { "type": "number" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["applicationId", "candidateId", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": { "$ref": "User" },
+      "description": "User profiles. Users can read their own profile, recruiters can read candidates, admins can read all."
+    },
+    "resumes/{resumeId}": {
+      "schema": { "$ref": "Resume" },
+      "description": "Resumes. Candidates read/write their own. Recruiters can read resumes of candidates who applied to their jobs."
+    },
+    "jobs/{jobId}": {
+      "schema": { "$ref": "Job" },
+      "description": "Job postings. Anyone can read open jobs. Recruiters read/write their own jobs."
+    },
+    "applications/{applicationId}": {
+      "schema": { "$ref": "Application" },
+      "description": "Job applications. Candidates can read their own. Recruiters can read applications for their jobs."
+    },
+    "interviews/{interviewId}": {
+      "schema": { "$ref": "Interview" },
+      "description": "AI interviews. Candidates can read/write their own. Recruiters can read interviews for their applications."
+    }
+  }
+}

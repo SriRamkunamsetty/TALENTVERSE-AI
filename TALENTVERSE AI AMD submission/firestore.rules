@@ -1,0 +1,61 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() { return request.auth != null; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['email', 'role', 'createdAt']) &&
+             data.email is string && data.email.size() <= 100 &&
+             data.role in ['candidate', 'recruiter', 'admin'] &&
+             data.createdAt is timestamp;
+    }
+
+    match /users/{userId} {
+      allow read: if isSignedIn() && (request.auth.uid == userId || (resource != null && existing().role in ['recruiter', 'admin']));
+      allow create: if isSignedIn() && request.auth.uid == userId && isValidId(userId) && isValidUser(incoming());
+      allow update: if isSignedIn() && request.auth.uid == userId &&
+                    (
+                      incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'updatedAt'])
+                    ) && incoming().updatedAt is timestamp;
+    }
+
+    match /jobs/{jobId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(jobId) &&
+                    get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'recruiter' &&
+                    incoming().recruiterId == request.auth.uid;
+      allow update: if isSignedIn() && existing().recruiterId == request.auth.uid &&
+                    incoming().diff(existing()).affectedKeys().hasOnly(['title', 'description', 'status', 'requirements', 'aiAnalysis', 'updatedAt']);
+    }
+
+    match /resumes/{resumeId} {
+      allow read: if isSignedIn() && (existing().candidateId == request.auth.uid || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'recruiter');
+      allow create: if isSignedIn() && isValidId(resumeId) && incoming().candidateId == request.auth.uid;
+      allow update: if isSignedIn() && existing().candidateId == request.auth.uid &&
+                    incoming().diff(existing()).affectedKeys().hasOnly(['parsedText', 'aiAnalysis']);
+    }
+
+    match /applications/{applicationId} {
+      allow read: if isSignedIn() && (existing().candidateId == request.auth.uid || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'recruiter');
+      allow create: if isSignedIn() && isValidId(applicationId) && incoming().candidateId == request.auth.uid;
+      allow update: if isSignedIn() && (
+        (existing().candidateId == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])) ||
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'recruiter' && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'matchScore', 'aiExplanation', 'updatedAt']))
+      );
+    }
+
+    match /interviews/{interviewId} {
+      allow read: if isSignedIn() && (existing().candidateId == request.auth.uid || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'recruiter');
+      allow create: if isSignedIn() && isValidId(interviewId) && incoming().candidateId == request.auth.uid;
+      allow update: if isSignedIn() && existing().candidateId == request.auth.uid &&
+                    incoming().diff(existing()).affectedKeys().hasOnly(['transcript', 'aiFeedback', 'score', 'status', 'updatedAt']);
+    }
+  }
+}
